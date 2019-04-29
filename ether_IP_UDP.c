@@ -102,7 +102,7 @@ int main(int argc,char* argv[]){
     //iph->check = check_sum((unsigned short*)datagram, iph->tot_len);
     tx_len += sizeof(struct iphdr);
 
-    struct udphdr* udph = (struct udphdr*)(datagram+sizeof(struct ip));
+    struct udphdr* udph = (struct udphdr*)(datagram+ tx_len);
     //udp
     udph->source = htons(46156);
     udph->dest = htons(8080);
