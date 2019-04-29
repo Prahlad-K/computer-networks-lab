@@ -100,7 +100,7 @@ int main (void)
 	iph->daddr = sin.sin_addr.s_addr;
 	
 	//Ip checksum
-	iph->check = csum ((unsigned short *) datagram, iph->;tot_len);
+	iph->check = csum ((unsigned short *) datagram, sizeof(struct iphdr));
 	
 	//UDP header
 	udph->source = htons (6666);
@@ -127,7 +127,7 @@ int main (void)
 	//while (1)
 	{
 		//Send the packet
-		if (sendto (s, datagram, iph->;tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) <; 0)
+		if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) <; 0)
 		{
 			perror("sendto failed");
 		}
