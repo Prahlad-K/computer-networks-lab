@@ -1,17 +1,23 @@
 /*
-	Raw UDP sockets
+	Raw TCP packets
+	Silver Moon (m00n.silv3r@gmail.com)
 */
-#include<stdio.h>;	//for printf
-#include<string.h>; //memset
-#include<sys/socket.h>;	//for socket ofcourse
-#include<stdlib.h>; //for exit(0);
-#include<errno.h>; //For errno - the error number
-#include<netinet/udp.h>;	//Provides declarations for udp header
-#include<netinet/ip.h>;	//Provides declarations for ip header
+#include<stdio.h>	//for printf
+#include<string.h> //memset
+#include<sys/socket.h>	//for socket ofcourse
+#include<stdlib.h> //for exit(0);
+#include<errno.h> //For errno - the error number
+#include<netinet/tcp.h>	//Provides declarations for tcp header
+#include<netinet/ip.h>	//Provides declarations for ip header
+#include<netinet/udp.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+
 
 /* 
-	96 bit (12 bytes) pseudo header needed for udp header checksum calculation 
+	96 bit (12 bytes) pseudo header needed for tcp header checksum calculation 
 */
+
 struct pseudo_header
 {
 	u_int32_t source_address;
@@ -31,7 +37,7 @@ unsigned short csum(unsigned short *ptr,int nbytes)
 	register short answer;
 
 	sum=0;
-	while(nbytes>;1) {
+	while(nbytes>1) {
 		sum+=*ptr++;
 		nbytes-=2;
 	}
@@ -50,18 +56,18 @@ unsigned short csum(unsigned short *ptr,int nbytes)
 
 int main (void)
 {
-	//Create a raw socket of type IPPROTO
-	int s = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
+	//Create a raw socket
+	int s = socket (PF_INET, SOCK_RAW, IPPROTO_UDP);
 	
 	if(s == -1)
 	{
 		//socket creation failed, may be because of non-root privileges
-		perror("Failed to create raw socket");
+		perror("Failed to create socket");
 		exit(1);
 	}
 	
 	//Datagram to represent the packet
-	char datagram[4096] , source_ip[32] , *data , *pseudogram;
+	char datagram[4096] , source_ip[32] , *data , pseudogram[4096];
 	
 	//zero out the packet buffer
 	memset (datagram, 0, 4096);
@@ -71,20 +77,12 @@ int main (void)
 	
 	//UDP header
 	struct udphdr *udph = (struct udphdr *) (datagram + sizeof (struct ip));
-	
 	struct sockaddr_in sin;
 	struct pseudo_header psh;
 	
 	//Data part
 	data = datagram + sizeof(struct iphdr) + sizeof(struct udphdr);
 	strcpy(data , "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-	
-	//some address resolution
-	strcpy(source_ip , "192.168.1.2");
-	
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(80);
-	sin.sin_addr.s_addr = inet_addr ("192.168.1.1");
 	
 	//Fill in the IP Header
 	iph->ihl = 5;
@@ -96,38 +94,49 @@ int main (void)
 	iph->ttl = 255;
 	iph->protocol = IPPROTO_UDP;
 	iph->check = 0;		//Set to 0 before calculating checksum
-	iph->saddr = inet_addr ( source_ip );	//Spoof the source ip address
-	iph->daddr = sin.sin_addr.s_addr;
+	iph->saddr = inet_addr ( "192.168.43.16" );	//Spoof the source ip address
+	iph->daddr = inet_addr ( "192.168.43.40" );
 	
 	//Ip checksum
-	iph->check = csum ((unsigned short *) datagram, sizeof(struct iphdr));
+	//iph->check = csum ((unsigned short *) datagram, iph->tot_len);
 	
-	//UDP header
-	udph->source = htons (6666);
-	udph->dest = htons (8622);
-	udph->len = htons(8 + strlen(data));	//tcp header size
-	udph->check = 0;	//leave checksum 0 now, filled later by pseudo header
-	
-	//Now the UDP checksum using the pseudo header
-	psh.source_address = inet_addr( source_ip );
-	psh.dest_address = sin.sin_addr.s_addr;
-	psh.placeholder = 0;
-	psh.protocol = IPPROTO_UDP;
-	psh.udp_length = htons(sizeof(struct udphdr) + strlen(data) );
+	//UDP Header
+    udph->source = htons(46156);
+    udph->dest = htons(8080);
+    udph->len = htons(sizeof(struct udphdr) + strlen(data));
+    udph->check = 0;
+    psh.source_address = inet_addr("192.168.43.16");
+    psh.dest_address = inet_addr("192.168.43.40");
+    psh.placeholder = 0;
+    psh.protocol = IPPROTO_UDP;
+    psh.udp_length = htons(sizeof(struct udphdr)+strlen(data));
+    
 	
 	int psize = sizeof(struct pseudo_header) + sizeof(struct udphdr) + strlen(data);
-	pseudogram = malloc(psize);
 	
 	memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
 	memcpy(pseudogram + sizeof(struct pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
 	
-	udph->check = csum( (unsigned short*) pseudogram , psize);
+	udph->check = csum( (unsigned short*)pseudogram , psize);
 	
+	//IP_HDRINCL to tell the kernel that headers are included in the packet
+	int one = 1;
+	
+	if (setsockopt (s, IPPROTO_IP, IP_HDRINCL, &one, sizeof (one)) < 0)
+	{
+		perror("Error setting IP_HDRINCL");
+		exit(0);
+	}
+	
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = inet_addr("192.168.43.40");
+    sin.sin_port = htons(8080);
+
 	//loop if you want to flood :)
 	//while (1)
 	{
 		//Send the packet
-		if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) <; 0)
+		if (sendto (s, datagram, iph->tot_len ,	0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
 		{
 			perror("sendto failed");
 		}
@@ -140,5 +149,3 @@ int main (void)
 	
 	return 0;
 }
-
-//Complete
