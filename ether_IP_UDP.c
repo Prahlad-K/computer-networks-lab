@@ -70,19 +70,20 @@ int main(int argc,char* argv[]){
   
     //ether_header---------------------------------------------------
     struct ether_header *eh = (struct ether_header*) datagram;
-    eh->ether_shost[0] = 0x00;
-    eh->ether_shost[1] = 0xdb;
-    eh->ether_shost[2] = 0xdf;
-    eh->ether_shost[3] = 0xd1;
-    eh->ether_shost[4] = 0xa3;
-    eh->ether_shost[5] = 0xee;
+  // 44:1c:a8:a6:ef:9b
+    eh->ether_shost[0] = 0x44;
+    eh->ether_shost[1] = 0x1c;
+    eh->ether_shost[2] = 0xa8;
+    eh->ether_shost[3] = 0xa6;
+    eh->ether_shost[4] = 0xef;
+    eh->ether_shost[5] = 0x9b;
 
-    eh->ether_dhost[0] = 0xf8;
-    eh->ether_dhost[1] = 0x28;
-    eh->ether_dhost[2] = 0x19;
-    eh->ether_dhost[3] = 0xaf;
-    eh->ether_dhost[4] = 0x06;
-    eh->ether_dhost[5] = 0xe5;
+    eh->ether_dhost[0] = 0x44;
+    eh->ether_dhost[1] = 0x1c;
+    eh->ether_dhost[2] = 0xa8;
+    eh->ether_dhost[3] = 0xa6;
+    eh->ether_dhost[4] = 0xef;
+    eh->ether_dhost[5] = 0x9b;
 
     eh->ether_type = htons(ETH_P_IP);
     tx_len += sizeof(struct ether_header);
@@ -97,8 +98,8 @@ int main(int argc,char* argv[]){
     iph->frag_off = htons(16384);
     iph->ttl = 64;
     iph->protocol = IPPROTO_UDP;
-    iph->saddr = inet_addr("192.168.43.16"); //Spoof the source ip address
-    iph->daddr = inet_addr("192.168.43.40");
+    iph->saddr = inet_addr("192.168.43.123"); //Spoof the source ip address
+    iph->daddr = inet_addr("192.168.43.123");
     //iph->check = check_sum((unsigned short*)datagram, iph->tot_len);
     tx_len += sizeof(struct iphdr);
 
@@ -122,8 +123,8 @@ int main(int argc,char* argv[]){
 
     struct pseudo_header psh;
     udph->check =0;
-    psh.source_address = inet_addr("192.168.43.16");
-    psh.dest_address = inet_addr("192.168.43.40");
+    psh.source_address = inet_addr("192.168.43.123");
+    psh.dest_address = inet_addr("192.168.43.123");
     psh.placeholder = 0;
     psh.protocol = IPPROTO_UDP;
     psh.udp_length = htons(sizeof(struct udphdr)+strlen(buff));

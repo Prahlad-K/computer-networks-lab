@@ -11,6 +11,12 @@
 #include<netinet/tcp.h>
 #include<netinet/if_ether.h>
 #include<net/ethernet.h>
+
+#include <sys/socket.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h> /* the L2 protocols */
+#include <net/if.h>
+
 int main(int argc,char **argv)
 {
 	char *device;
